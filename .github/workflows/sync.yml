@@ -7,33 +7,39 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
     steps:
       - name: Checkout GitHub Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run Sync Script
+      - name: Run Modern Sync
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
           GITLAB_USERNAME: akashkalathiya46
-          GITHUB_EMAIL: akashkalathiya46@gmail.com
         run: |
-          git config --global user.email "$GITHUB_EMAIL"
+          git config --global user.email "akashkalathiya46@gmail.com"
           git config --global user.name "Akash-ptl"
           
-          # Fetch GitLab contribution data (last 1 year)
-          DATA=$(curl -s "https://gitlab.com/users/$GITLAB_USERNAME/calendar.json")
+          # Get Official GitLab User ID
+          USER_ID=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "https://gitlab.com/api/v4/users?username=$GITLAB_USERNAME" | jq -r '.[0].id')
           
-          # Iterate through dates and counts
-          echo "$DATA" | jq -r 'to_entries[] | "\(.key) \(.value)"' | while read -r DATE COUNT; do
-            if [ "$COUNT" -gt 0 ]; then
-              for i in $(seq 1 $COUNT); do
-                echo "GitLab Contribution $i on $DATE" > sync_log.txt
-                GIT_AUTHOR_DATE="${DATE}T12:00:00" GIT_COMMITTER_DATE="${DATE}T12:00:00" git commit --allow-empty -m "GitLab Sync: $DATE" --date="${DATE}T12:00:00"
-              done
-            fi
+          if [ "$USER_ID" == "null" ] || [ -z "$USER_ID" ]; then
+            echo "Error: Could not find GitLab User ID. Please check your token and username."
+            exit 1
+          fi
+
+          # Fetch unique contribution dates from Events API (last 100 events for now to test)
+          DATES=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "https://gitlab.com/api/v4/users/$USER_ID/events?per_page=100" | jq -r '.[].created_at' | cut -d'T' -f1 | sort | uniq)
+
+          for DATE in $DATES; do
+            # Create a mock commit only if it doesn't already exist for that date in history
+            # (Simplifying for demo, will create one commit per active day found)
+            echo "Syncing active day: $DATE"
+            git commit --allow-empty -m "GitLab Sync: $DATE" --date="${DATE}T12:00:00"
           done
-          
+
           git push origin main
