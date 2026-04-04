@@ -1,4 +1,4 @@
-name: Sync GitLab Contributions (2026 Standard)
+name: Deep Sync GitLab (3 Years History)
 on:
   schedule:
     - cron: '30 18 * * *'
@@ -9,14 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      
+
     steps:
-      - name: Checkout GitHub Repo (v4 2026 patched)
+      - name: Checkout GitHub Repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Dynamic GitLab API Sync
+      - name: Historical GitLab Sync
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
           GITLAB_USERNAME: akashkalathiya46
@@ -24,21 +24,22 @@ jobs:
           git config --global user.email "akashkalathiya46@gmail.com"
           git config --global user.name "Akash-ptl"
           
-          # Fetching User ID using latest GitLab REST API v4
           USER_ID=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "https://gitlab.com/api/v4/users?username=$GITLAB_USERNAME" | jq -r '.[0].id')
-          
-          if [[ "$USER_ID" == "null" || -z "$USER_ID" ]]; then
-            echo "::error::Could not find GitLab User. Checking public profile fallback..."
-            USER_ID=$(curl -s "https://gitlab.com/api/v4/users?username=$GITLAB_USERNAME" | jq -r '.[0].id')
-          fi
+          if [[ "$USER_ID" == "null" || -z "$USER_ID" ]]; then exit 1; fi
 
-          # Fetch up to 200 recent events for synchronization (2026 API standard)
-          DATES=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "https://gitlab.com/api/v4/users/$USER_ID/events?per_page=100&action=pushed" | jq -r '.[].created_at' | cut -d'T' -f1 | sort | uniq)
+          # Loop through years (2024, 2025, 2026) for deeper history
+          for YEAR in 2024 2025 2026; do
+            echo "Fetching Year: $YEAR"
+            # Get up to 4 pages per year to grab maximum data
+            for PAGE in {1..4}; do
+              DATES=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "https://gitlab.com/api/v4/users/$USER_ID/events?per_page=100&page=$PAGE&after=${YEAR}-01-01&before=${YEAR}-12-31" | jq -r '.[].created_at' | cut -d'T' -f1 | sort | uniq)
+              
+              if [[ -z "$DATES" ]]; then break; fi # Stop if no results on this page
 
-          for DATE in $DATES; do
-            echo "Processing activity for: $DATE"
-            git commit --allow-empty -m "GitLab Activity Sync: $DATE [2026-Automated]" --date="${DATE}T12:00:00"
+              for DATE in $DATES; do
+                git commit --allow-empty -m "Sync: $DATE" --date="${DATE}T12:00:00"
+              done
+            done
           done
 
-          # Push using standard main branch (2026 default)
           git push -f origin main
