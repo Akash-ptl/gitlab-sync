@@ -1,22 +1,17 @@
 name: Sync GitLab Contributions
 on:
   schedule:
-    - cron: '30 18 * * *' # Every night
-  workflow_dispatch: # Manual Button
+    - cron: '30 18 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
       - name: Sync GitLab to GitHub
-        uses: K-S-Vishwa/GitLab-GitHub-Sync-Action@v1.1.0
+        uses: furmanp/gitlab-activity-importer@master
         with:
-          gitlab_username: akashkalathiya46
-          github_username: Akash-ptl
+          gitlab_user: akashkalathiya46
+          github_user: Akash-ptl
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gitlab_token: ${{ secrets.GITLAB_TOKEN }}
