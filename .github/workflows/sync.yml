@@ -9,9 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Sync GitLab to GitHub
-        uses: furmanp/gitlab-activity-importer@main
+        uses: AykutSarac/sync-contrib-calendar-action@v1.0.1
         with:
-          gitlab_user: akashkalathiya46
-          github_user: Akash-ptl
+          gitlab_username: akashkalathiya46
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          gitlab_token: ${{ secrets.GITLAB_TOKEN }}
