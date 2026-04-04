@@ -1,15 +1,39 @@
 name: Sync GitLab Contributions
 on:
   schedule:
-    - cron: '30 18 * * *'
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Sync GitLab to GitHub
-        uses: AykutSarac/sync-contrib-calendar-action@v1.0.1
+      - name: Checkout GitHub Repo
+        uses: actions/checkout@v3
         with:
-          gitlab_username: akashkalathiya46
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Sync Script
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_USERNAME: akashkalathiya46
+          GITHUB_EMAIL: akashkalathiya46@gmail.com
+        run: |
+          git config --global user.email "$GITHUB_EMAIL"
+          git config --global user.name "Akash-ptl"
+          
+          # Fetch GitLab contribution data (last 1 year)
+          DATA=$(curl -s "https://gitlab.com/users/$GITLAB_USERNAME/calendar.json")
+          
+          # Iterate through dates and counts
+          echo "$DATA" | jq -r 'to_entries[] | "\(.key) \(.value)"' | while read -r DATE COUNT; do
+            if [ "$COUNT" -gt 0 ]; then
+              for i in $(seq 1 $COUNT); do
+                echo "GitLab Contribution $i on $DATE" > sync_log.txt
+                GIT_AUTHOR_DATE="${DATE}T12:00:00" GIT_COMMITTER_DATE="${DATE}T12:00:00" git commit --allow-empty -m "GitLab Sync: $DATE" --date="${DATE}T12:00:00"
+              done
+            fi
+          done
+          
+          git push origin main
