@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Sync GitLab to GitHub
-        uses: furmanp/gitlab-activity-importer@master
+        uses: furmanp/gitlab-activity-importer@main
         with:
           gitlab_user: akashkalathiya46
           github_user: Akash-ptl
